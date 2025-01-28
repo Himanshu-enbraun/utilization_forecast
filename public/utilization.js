@@ -81,7 +81,6 @@ function getHeaders(startDate, endDate) {
 }
 
 const generateJSON = async (data, projects) => {
-    // const { projects, utilization: data } = await fetch("./data.json").then(res => res.json());
 
     // Generating project ID-name map
     const project_id_name_map = {};
@@ -155,10 +154,10 @@ const handleSubmit = async (e) => {
     const startDate = formData.get("start_date");
     const endDate = formData.get("end_date");
 
-    const data = await fetch(`/getData?start=${startDate}&end=${endDate}`, {
+    const data = await fetch(`/getUtilization?start=${startDate}&end=${endDate}`, {
         method: 'GET'
     }).then(res => res.json()).then(res => res);
-
+    
     const util = data.utilisation;
     const projects = data.projects;
 

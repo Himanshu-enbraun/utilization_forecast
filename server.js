@@ -13,10 +13,31 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // Define a basic route
 app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
+    res.sendFile(path.join(__dirname, "public", "forecast.html"));
+});
+app.get("/utilization", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "utilization.html"));
 });
 
-app.get("/getData", async (req, res) => {
+app.get("/getForecast", async (req, res) => {
+    const { start, end } = req.query; // Use req.query for query parameters
+    const domain = 'http://localhost:8080';
+    const token = 'rz5luh8z5ag2c30ph03tzgqbovyvoq';
+
+    try {
+        const forecast = await axios.get(`${domain}/rest/forecast?start=${start}&end=${end}`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        });
+        res.send({ msg: "Data fetched", forecast: forecast.data});
+    } catch (error) {
+        console.error("Error fetching data:", error.message);
+        res.status(500).send({ msg: "An error occurred", error: error.message });
+    }
+});
+
+app.get("/getUtilization", async (req, res) => {
     const { start, end } = req.query; // Use req.query for query parameters
     const domain = 'http://localhost:8080';
     const token = 'rz5luh8z5ag2c30ph03tzgqbovyvoq';

@@ -255,11 +255,10 @@ const generatePRData = (utilization, pendingReqCalculationMethod) => {
     return roleRequirementmap;
 };
 
-const generateJSON = async (forecastData, PRSelection = 'a', BalanceSelection = 'b') => {
-    const data = forecastData || await fetch("./data.json").then(res => res.json());
-    const { resources, totalCapacity, totalUtilization, totalActualUtilization, projects } = data;
+const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => {
+    const { resources, totalCapacity, totalUtilization, totalActualUtilization} = data;
 
-    const prData = generatePRData(forecastData, PRSelection);
+    const prData = generatePRData(data, PRSelection);
 
     const start = new Date(data.start_date);
     const end = new Date(data.end_date);
@@ -430,12 +429,11 @@ const handleSubmit = async (e) => {
         selectedUnits[box] = true
     })
 
-    const data = await fetch(`/getData?start=${startDate}&end=${endDate}`, {
+    const data = await fetch(`/getForecast?start=${startDate}&end=${endDate}`, {
         method: 'GET'
     }).then(res => res.json()).then(res => res);
 
     const forecast = data.forecast;
-
     generateJSON(forecast, PRData, BalData);
 }
 
