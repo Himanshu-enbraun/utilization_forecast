@@ -1,3 +1,5 @@
+let roles = {};
+
 const displayCSV = (csvData) => {
     const rows = csvData.split('\n'); // Split data by newlines
     const table = document.getElementById('csvTable');
@@ -30,7 +32,7 @@ const displayCSV = (csvData) => {
 function formatNumber(value) {
     return value % 1 === 0 ? value : value.toFixed(2);
 }
-const generateCSV = (headers, data) => {
+const generateCSV = (headers, data, prData) => {
     let csv = "";
     if (headers[0].length !== headers[1].length) {
         alert("Headers length must be samef");
@@ -52,6 +54,9 @@ const generateCSV = (headers, data) => {
         return Number(a) - Number(b);
     });
     keys.forEach(role => {
+        if (!prData[role]) {
+            return;
+        }
         const currentRole = data[role];
         for (let i = 0; i < headers[0].length; i++) {
             const headP = headers[0][i];
@@ -59,9 +64,10 @@ const generateCSV = (headers, data) => {
 
             // first column value;
             if (headP === "Primary Role" && headC === "Unit") {
-                csv += `${role},`;
+                csv += `${roles[role] || role},`;
             } else {
-                const valueToAdd = currentRole[headC][headP];
+                // console.log(currentRole, headC, currentRole[headC], headP)
+                const valueToAdd = currentRole[headC] && currentRole[headC][headP] || 0;
                 csv += `${formatNumber(valueToAdd)},`;
             }
         }
@@ -74,7 +80,7 @@ const selectedUnits = {
     "Capacity": false, "Scheduled": false, "Pending-Request": false, "Balance": false, "Actual": false
 };
 
-function getHeaders(startDate, endDate, selectedUnits) {
+function getHeaders(startDate, endDate) {
     const start = new Date(startDate);
     const end = new Date(endDate);
     const headers = [
@@ -83,13 +89,13 @@ function getHeaders(startDate, endDate, selectedUnits) {
     ];
     const units = ["Capacity", "Scheduled", "Actual", "Pending-Request", "Balance"];
 
-    // Add "Total" headers once for all selected units
-    units.forEach(unit => {
-        if (selectedUnits[unit]) {
-            headers[0].push("Total");
-            headers[1].push(unit);
-        }
-    });
+    // Add "Total" headers once for all selected units. Uncomment this to add total
+    // units.forEach(unit => {
+    //     if (selectedUnits[unit]) {
+    //         headers[0].push("Total");
+    //         headers[1].push(unit);
+    //     }
+    // });
 
     // Add month-year headers for each selected unit
     while (start <= end) {
@@ -97,7 +103,7 @@ function getHeaders(startDate, endDate, selectedUnits) {
         const year = start.getFullYear().toString().slice(-2); // Short year format
         units.forEach(unit => {
             if (selectedUnits[unit]) {
-                headers[0].push(`${month}-${year}`);
+                headers[0].push(`${year}-${month}`);
                 headers[1].push(unit);
             }
         });
@@ -108,13 +114,6 @@ function getHeaders(startDate, endDate, selectedUnits) {
     return headers; // This will be in chronological order
 }
 
-const getPR = (condition, cap, util) => {
-    return 0;
-    switch (condition) {
-        default:
-            return 0;
-    }
-}
 const getBalance = (condition, cap, util, actual, PR) => {
     switch (condition) {
         case "a":
@@ -256,16 +255,15 @@ const generatePRData = (utilization, pendingReqCalculationMethod) => {
 };
 
 const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => {
-    const { resources, totalCapacity, totalUtilization, totalActualUtilization} = data;
+    const { resources, totalCapacity, totalUtilization, totalActualUtilization } = data;
 
     const prData = generatePRData(data, PRSelection);
 
     const start = new Date(data.start_date);
     const end = new Date(data.end_date);
-    const headers = getHeaders(start, end, selectedUnits);
+    const headers = getHeaders(start, end);
     const forecast = { Total: {} };
 
-    const allRoles = new Set([]);
     for (let resource = 0; resource < resources.length; resource++) { // Looping on all resources
         const currentResource = resources[resource];
         const { dailyUtilization, dailyActualUtilization, dailyCapacity } = currentResource;
@@ -276,9 +274,6 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
 
         for (let role = 0; role < roles.length; role++) { // Looping on all roles of current resource
             const currentRole = roles[role];
-
-            // Adding roles to unique set
-            allRoles.add(currentRole);
 
             if (!forecast[currentRole]) {
                 forecast[currentRole] = { name: "To be added" };
@@ -292,14 +287,16 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
                 let PR;
                 if (currentRole === "Role Undefined") {
                     PR = prData[-1] && prData[-1][dateIndex] && prData[-1][dateIndex][0] || 0;
+                } else if (prData[currentRole]) {
+                    PR = prData[currentRole][dateIndex] && prData[currentRole][dateIndex][0] || 0;
                 } else {
-                    PR = prData[currentRole] && prData[currentRole][dateIndex] && prData[currentRole][dateIndex][0] || 0;
+                    continue;
                 }
 
                 // Generating date format
                 const month = trackingDate.toLocaleString('default', { month: 'short' });
                 const year = trackingDate.getFullYear().toString().slice(-2);
-                const dateFormat = `${month}-${year}`;
+                const dateFormat = `${year}-${month}`;
                 const date = trackingDate.getDate();
 
                 // Column Total
@@ -395,7 +392,6 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
                     forecast.Total["Balance"].Total += balance;
                     forecast.Total.Balance[dateFormat] = (forecast.Total.Balance[dateFormat] || 0) + balance;
                 }
-                // console.log("currentCap", currentCap, "currentActUtil", currentActUtil, "currentUtil", currentUtil);
 
                 trackingDate.setDate(trackingDate.getDate() + 1);
             }
@@ -403,7 +399,7 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
             currentRole === "Role Undefined" ? prData[-1] && !prData[-1].includes("iterated") && prData[-1].push("iterated") : prData[currentRole] && !prData[currentRole].includes("iterated") && prData[currentRole].push("iterated");
         }
     }
-    const createdCSV = generateCSV(headers, forecast);
+    const createdCSV = generateCSV(headers, forecast, prData, roles);
     downloadExistingCSV(createdCSV);
     displayCSV(createdCSV);
 }
@@ -432,9 +428,13 @@ const handleSubmit = async (e) => {
     const data = await fetch(`/getForecast?start=${startDate}&end=${endDate}`, {
         method: 'GET'
     }).then(res => res.json()).then(res => res);
-
     const forecast = data.forecast;
-    generateJSON(forecast, PRData, BalData);
+    const rolesArray = data.roles && data.roles.data || {};
+    roles = {};
+    rolesArray.forEach(role => {
+        roles[role.id] = role.name;
+    })
+    generateJSON(forecast, PRData, BalData, roles);
 }
 
 // Export table data to CSV

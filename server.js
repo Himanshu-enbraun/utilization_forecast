@@ -2,6 +2,8 @@ const express = require("express");
 const path = require("path");
 const cors = require("cors");
 const axios = require("axios");
+const domain = 'https://test.eresourcescheduler.cloud';
+const token = '7288db5ihyv06v1spiiut1ul69a5q6';
 
 const app = express();
 const PORT = 3000;
@@ -21,16 +23,19 @@ app.get("/utilization", (req, res) => {
 
 app.get("/getForecast", async (req, res) => {
     const { start, end } = req.query; // Use req.query for query parameters
-    const domain = 'http://localhost:8080';
-    const token = 'rz5luh8z5ag2c30ph03tzgqbovyvoq';
 
     try {
+        const roles = await axios.get(`${domain}/rest/roles`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        });
         const forecast = await axios.get(`${domain}/rest/forecast?start=${start}&end=${end}`, {
             headers: {
                 Authorization: `Bearer ${token}`
             },
         });
-        res.send({ msg: "Data fetched", forecast: forecast.data});
+        res.send({ msg: "Data fetched", forecast: forecast.data, roles: roles.data });
     } catch (error) {
         console.error("Error fetching data:", error.message);
         res.status(500).send({ msg: "An error occurred", error: error.message });
@@ -39,10 +44,13 @@ app.get("/getForecast", async (req, res) => {
 
 app.get("/getUtilization", async (req, res) => {
     const { start, end } = req.query; // Use req.query for query parameters
-    const domain = 'http://localhost:8080';
-    const token = 'rz5luh8z5ag2c30ph03tzgqbovyvoq';
 
     try {
+        const roles = await axios.get(`${domain}/rest/roles`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        });
         const utilisation = await axios.get(`${domain}/rest/utilization?start=${start}&end=${end}`, {
             headers: {
                 Authorization: `Bearer ${token}`
@@ -54,7 +62,7 @@ app.get("/getUtilization", async (req, res) => {
             },
             "method": "GET"
         })
-        res.send({ msg: "Data fetched", utilisation: utilisation.data, projects: projects.data.data });
+        res.send({ msg: "Data fetched", utilisation: utilisation.data, projects: projects.data.data, roles: roles.data });
     } catch (error) {
         console.error("Error fetching data:", error.message);
         res.status(500).send({ msg: "An error occurred", error: error.message });
