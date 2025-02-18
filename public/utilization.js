@@ -20,6 +20,7 @@ const RELNUM = "releaseNumber"
 const headerSequenceMap = ["Resource", "Resource Id", "Resource Type", "Roles", "Primary Role", "Project", "Project Type", "Platform", "Case Number", "Case Id", "Project Code", "Release Number"];
 
 let roles = {};
+let resourceTypes = {};
 
 const displayCSV = (csvData) => {
     const rows = csvData.split('\n'); // Split data by newlines
@@ -146,7 +147,7 @@ const generateJSON = async (data, projects) => {
         const resource_obj_data = utilization[resourceId].data;
         resource_obj_data[RESNAME] = resourceName;
         resource_obj_data[RESID] = resourceId;
-        resource_obj_data[RESTYPE] = currRes.resource_type_id;
+        resource_obj_data[RESTYPE] = resourceTypes[currRes.resource_type_id];
         resource_obj_data[ROLES] = currRes.roles || ["NA"];
         resource_obj_data[PRIMARYROLE] = resource_obj_data[ROLES][0];
         let trackingDate = new Date(start);
@@ -210,11 +211,16 @@ const handleSubmit = async (e) => {
     }).then(res => res.json()).then(res => res);
 
     const util = data.utilisation;
+    const resourceTypeArray = data.resourceTypes;
     const projects = data.projects;
     const rolesArray = data.roles && data.roles.data || {};
     roles = {};
     rolesArray.forEach(role => {
         roles[role.id] = role.name;
+    })
+    resourceTypes = {};
+    resourceTypeArray.forEach(resourceType => {
+        resourceTypes[resourceType.id] = resourceType.name;
     })
 
     generateJSON(util, projects);

@@ -18,14 +18,14 @@
         <form id="form" class="row mb-3 align-items-end" onsubmit="handleSubmit(event)">
             <div class="col-md-3 mb-3">
                 <label for="start_date" class="form-label">Start Date</label>
-                <input class="form-control" type="date" name="start_date" id="start_date" value="2024-08-01">
+                <input class="form-control" type="date" name="start_date" id="start_date" value="2025-02-01">
             </div>
             <div class="col-md-3 mb-3">
                 <label for="end_date" class="form-label">End Date</label>
-                <input class="form-control" type="date" name="end_date" id="end_date" value="2025-02-01">
+                <input class="form-control" type="date" name="end_date" id="end_date" value="2025-02-28">
             </div>
             <div class="col-md-3 mb-3">
-                <label for="pr_data" class="form-label">PR Data</label>
+                <label for="pr_data" class="form-label">Pending Request Data</label>
                 <select id="pr_data" class="form-select" name="pr_data">
                     <option selected value="a">Request - Scheduled</option>
                     <option value="b">Request - Actual</option>
@@ -36,11 +36,11 @@
                 <select id="balance_data" class="form-select" name="balance_data">
                     <option value="a">Capacity - Scheduled</option>
                     <option value="b">Capacity - Actual</option>
-                    <option selected value="c">Capacity - Scheduled - PR</option>
-                    <option value="d">Capacity - Actual - PR</option>
+                    <option selected value="c">Capacity - Scheduled - Pending Request</option>
+                    <option value="d">Capacity - Actual - Pending Request</option>
                 </select>
             </div>
-            <div class="col-md-12 mb-3">
+            <div class="col-md-6 mb-3">
                 <label class="form-label">Select Units</label>
                 <div class="row gx-2">
                     <div class="col-md-6 form-check">
@@ -67,6 +67,21 @@
                     <div class="col-md-6 form-check">
                         <input class="form-check-input" type="checkbox" name="units" id="balance" checked value="Balance">
                         <label class="form-check-label" for="balance">Balance</label>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3 align-self-start">
+                <label class="form-label">Calculate Pending Request Using</label>
+                <div class="row gx-2">
+                    <div class="col-md-6 form-check">
+                        <input class="form-check-input" type="radio" name="all_linkedBookings" id="linkedBookings" value=true>
+                        <label class="form-check-label" for="linkedBookings">Linked Bookings</label>
+                    </div>
+                </div>
+                <div class="row gx-2">
+                    <div class="col-md-6 form-check">
+                        <input class="form-check-input" type="radio" name="all_linkedBookings" id="allBookings" checked value=false>
+                        <label class="form-check-label" for="allBookings">All Bookings</label>
                     </div>
                 </div>
             </div>

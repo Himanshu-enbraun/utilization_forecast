@@ -1,4 +1,4 @@
-let roles = {};
+let rolesMap = {};
 
 const displayCSV = (csvData) => {
     const rows = csvData.split('\n'); // Split data by newlines
@@ -12,6 +12,9 @@ const displayCSV = (csvData) => {
 
     rows.forEach((row, index) => {
         const cells = row.split(','); // Split row into columns
+        if (!cells[cells.length - 1]) {
+            cells.pop();
+        }
         const tr = document.createElement('tr');
         cells.forEach(cell => {
             const td = document.createElement(index === 0 ? 'th' : 'td');
@@ -54,9 +57,9 @@ const generateCSV = (headers, data, prData) => {
         return Number(a) - Number(b);
     });
     keys.forEach(role => {
-        if (!prData[role]) {
-            return;
-        }
+        // if (!prData[role] && role !== "Total" && role !== "Role Undefined") {
+        //     return;
+        // }
         const currentRole = data[role];
         for (let i = 0; i < headers[0].length; i++) {
             const headP = headers[0][i];
@@ -64,9 +67,8 @@ const generateCSV = (headers, data, prData) => {
 
             // first column value;
             if (headP === "Primary Role" && headC === "Unit") {
-                csv += `${roles[role] || role},`;
+                csv += `${rolesMap[role] || role},`;
             } else {
-                // console.log(currentRole, headC, currentRole[headC], headP)
                 const valueToAdd = currentRole[headC] && currentRole[headC][headP] || 0;
                 csv += `${formatNumber(valueToAdd)},`;
             }
@@ -269,28 +271,28 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
         const { dailyUtilization, dailyActualUtilization, dailyCapacity } = currentResource;
         const roles = (currentResource.data && currentResource.data.roles) || ["Role Undefined"];
 
-        const dateRange = dailyCapacity.length;
-        const trackingDate = new Date(start);
-
         for (let role = 0; role < roles.length; role++) { // Looping on all roles of current resource
             const currentRole = roles[role];
 
+            const dateRange = dailyCapacity.length;
+            const trackingDate = new Date(start);
+
             if (!forecast[currentRole]) {
-                forecast[currentRole] = { name: "To be added" };
+                forecast[currentRole] = { name: rolesMap[currentRole] };
             }
             const roleObj = forecast[currentRole];
 
             for (let dateIndex = 0; dateIndex < dateRange; dateIndex++) { // Looping on data given in format of dates from start to end
-                const currentCap = dailyCapacity[dateIndex];
-                const currentActUtil = dailyActualUtilization[dateIndex][0];
-                const currentUtil = dailyUtilization[dateIndex][0];
+                const currentCap = role === 0 ? dailyCapacity[dateIndex] : 0;
+                const currentActUtil = role === 0 ? dailyActualUtilization[dateIndex][0] : 0;
+                const currentUtil = role === 0 ? dailyUtilization[dateIndex][0] : 0;
                 let PR;
                 if (currentRole === "Role Undefined") {
                     PR = prData[-1] && prData[-1][dateIndex] && prData[-1][dateIndex][0] || 0;
                 } else if (prData[currentRole]) {
                     PR = prData[currentRole][dateIndex] && prData[currentRole][dateIndex][0] || 0;
                 } else {
-                    continue;
+                    PR = 0;
                 }
 
                 // Generating date format
@@ -300,7 +302,7 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
                 const date = trackingDate.getDate();
 
                 // Column Total
-                if (resource === 0 && role === 0) {
+                if (resource === 0) {
                     if (selectedUnits["Capacity"]) {
                         if (!forecast.Total["Capacity"]) {
                             forecast.Total["Capacity"] = { Total: 0 };
@@ -325,7 +327,7 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
                 }
 
                 // Row calculation WRT roles
-                if (selectedUnits["Capacity"]) {
+                if (selectedUnits["Capacity"]) { // using role === 0 to add primary roles data only
                     if (!roleObj["Capacity"]) {
                         roleObj["Capacity"] = { Total: 0 };
                     }
@@ -333,7 +335,7 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
                     capObj[dateFormat] = (capObj[dateFormat] || 0) + currentCap;
                     capObj["Total"] += currentCap; // Row Total unit wise
                 }
-                if (selectedUnits["Scheduled"]) {
+                if (selectedUnits["Scheduled"]) { // using role === 0 to add primary roles data only
                     if (!roleObj["Scheduled"]) {
                         roleObj["Scheduled"] = { Total: 0 };
                     }
@@ -341,7 +343,7 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
                     scheObj[dateFormat] = (scheObj[dateFormat] || 0) + currentUtil;
                     scheObj["Total"] += currentUtil; // Row Total unit wise
                 }
-                if (selectedUnits["Actual"]) {
+                if (selectedUnits["Actual"]) { // using role === 0 to add primary roles data only
                     if (!roleObj["Actual"]) {
                         roleObj["Actual"] = { Total: 0 };
                     }
@@ -377,7 +379,7 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
                     forecast.Total["Pending-Request"].Total += PR;
                     forecast.Total["Pending-Request"][dateFormat] = (forecast.Total["Pending-Request"][dateFormat] || 0) + PR;
                 }
-                if (selectedUnits["Balance"]) {
+                if (selectedUnits["Balance"]) { // using role === 0 to add primary roles data only
                     if (!roleObj["Balance"]) {
                         roleObj["Balance"] = { Total: 0 };
                     }
@@ -399,7 +401,7 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
             currentRole === "Role Undefined" ? prData[-1] && !prData[-1].includes("iterated") && prData[-1].push("iterated") : prData[currentRole] && !prData[currentRole].includes("iterated") && prData[currentRole].push("iterated");
         }
     }
-    const createdCSV = generateCSV(headers, forecast, prData, roles);
+    const createdCSV = generateCSV(headers, forecast, prData);
     downloadExistingCSV(createdCSV);
     displayCSV(createdCSV);
 }
@@ -415,6 +417,7 @@ const handleSubmit = async (e) => {
     const endDate = formData.get("end_date");
     const PRData = formData.get("pr_data");
     const BalData = formData.get("balance_data");
+    const LinkedBookingsOnly = formData.get("all_linkedBookings");
 
     for (const key in selectedUnits) {
         selectedUnits[key] = false;
@@ -425,16 +428,16 @@ const handleSubmit = async (e) => {
         selectedUnits[box] = true
     })
 
-    const data = await fetch(`/getForecast?start=${startDate}&end=${endDate}`, {
+    const data = await fetch(`/getForecast?start=${startDate}&end=${endDate}&linkedBookingsOnly=${LinkedBookingsOnly}`, {
         method: 'GET'
     }).then(res => res.json()).then(res => res);
     const forecast = data.forecast;
     const rolesArray = data.roles && data.roles.data || {};
-    roles = {};
+    rolesMap = {};
     rolesArray.forEach(role => {
-        roles[role.id] = role.name;
+        rolesMap[role.id] = role.name;
     })
-    generateJSON(forecast, PRData, BalData, roles);
+    generateJSON(forecast, PRData, BalData);
 }
 
 // Export table data to CSV

@@ -3,7 +3,7 @@ const path = require("path");
 const cors = require("cors");
 const axios = require("axios");
 const domain = 'https://test.eresourcescheduler.cloud';
-const token = '7288db5ihyv06v1spiiut1ul69a5q6';
+const token = '1ck3mie2b09h4i21puhkxc1anooy5u';
 
 const app = express();
 const PORT = 3000;
@@ -22,7 +22,7 @@ app.get("/utilization", (req, res) => {
 });
 
 app.get("/getForecast", async (req, res) => {
-    const { start, end } = req.query; // Use req.query for query parameters
+    const { start, end, linkedBookingsOnly = false } = req.query; // Use req.query for query parameters
 
     try {
         const roles = await axios.get(`${domain}/rest/roles`, {
@@ -30,7 +30,7 @@ app.get("/getForecast", async (req, res) => {
                 Authorization: `Bearer ${token}`
             },
         });
-        const forecast = await axios.get(`${domain}/rest/forecast?start=${start}&end=${end}`, {
+        const forecast = await axios.get(`${domain}/rest/forecast?start=${start}&end=${end}&calculateGapUsingLinkedBookings=${linkedBookingsOnly}`, {
             headers: {
                 Authorization: `Bearer ${token}`
             },
@@ -62,7 +62,12 @@ app.get("/getUtilization", async (req, res) => {
             },
             "method": "GET"
         })
-        res.send({ msg: "Data fetched", utilisation: utilisation.data, projects: projects.data.data, roles: roles.data });
+        const resourceTypes = await axios.get(`${domain}/rest/resourcetype`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+        });
+        res.send({ msg: "Data fetched", utilisation: utilisation.data, projects: projects.data.data, roles: roles.data, resourceTypes: resourceTypes.data.data });
     } catch (error) {
         console.error("Error fetching data:", error.message);
         res.status(500).send({ msg: "An error occurred", error: error.message });
