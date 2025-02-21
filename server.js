@@ -3,7 +3,7 @@ const path = require("path");
 const cors = require("cors");
 const axios = require("axios");
 const domain = 'https://test.eresourcescheduler.cloud';
-const token = '1ck3mie2b09h4i21puhkxc1anooy5u';
+const token = 'puhv7j7fhvuxsu6q6rov59v4e3e6f1';
 
 const app = express();
 const PORT = 3000;
