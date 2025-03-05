@@ -10,13 +10,13 @@
 
 <body>
     <div class="container d-flex justify-content-center align-items-center">
-        <a href="/" class="btn btn-secondary mx-2">Forecast Data</a>
+        <a href="/" class="btn btn-secondary mx-2">Home</a>
+        <a href="/forecast" class="btn btn-secondary mx-2">Forecast Data</a>
         <a href="/utilization" class="btn btn-primary mx-2">Utilization Data</a>
     </div>
-    
     <div class="container">
         <h1 class="text-center mb-4">Dynamic Report with Export Feature</h1>
-        <form id="form" class="row mb-3 align-items-end" onsubmit="handleSubmit(event)">
+        <form id="form" class="row mb-3 align-items-end" onsubmit="handleSubmit_U(event)">
             <div class="col-md-3 h-100">
                 <label for="start_date">Start Date</label>
                 <input class="form-control" type="date" name="start_date" id="start_date" value="2025-01-01">
@@ -28,8 +28,8 @@
             <div class="col-md-3">
                 <input class="form-control btn-default" type="submit" value="Generate Data">
             </div>
-            <div class="col-md-3">
-                <button style="width: 100%;" id="exportButton" class="btn btn-success" disabled>Export to CSV</button>
+            <div class="col-md-3 row justify-content-between">
+                <button id="exportButton" style="width: 100%;" class="btn btn-success" disabled>Export to CSV</button>
             </div>
         </form>
         <div class="table-container" style="margin-bottom: 30px;">
@@ -71,6 +71,30 @@
     </div>
 </body>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="./common.js"></script>
 <script src="./utilization.js"></script>
+<script type="module">
+    const setDefaultConfiguration = async () => {
+        const response = await fetch("/env_config");
+        const config = await response.json();
+
+        // Getting all the configurations from .env file
+        const dateRange = config.DATE_RANGE;
+
+        // Getting all elements from the form
+        const startDate = document.getElementById("start_date");
+        const endDate = document.getElementById("end_date");
+
+        // Get Start date and End date
+        const currentYear = new Date().getFullYear();
+        const startYear = currentYear + parseInt(dateRange.split(',')[0]);
+        const endYear = currentYear + parseInt(dateRange.split(',')[1]);
+
+        // Setting Start and End Date
+        startDate.value = `${startYear}-01-01`;
+        endDate.value = `${endYear}-12-31`;
+    }
+    document.addEventListener("DOMContentLoaded", setDefaultConfiguration);
+</script>
 
 </html>

@@ -1,10 +1,6 @@
-// custom udfs for following. Change here if required
-const platformUdf = "udf_platform";
-const caseNumUdf = "udf_case_number";
-const caseIdUdf = "udf_case_id";
-const releaseNumUdf = "udf_release_number";
-const projCodeUdf = "udf_project_code";
-
+/*
+    * Variables used throughout multiple files
+*/
 const RESNAME = "resName"
 const RESID = "resId"
 const RESTYPE = "resType"
@@ -17,12 +13,15 @@ const CASENUM = "caseNumber"
 const CASEID = "caseId"
 const PROJCODE = "projCode"
 const RELNUM = "releaseNumber"
-const headerSequenceMap = ["Resource", "Resource Id", "Resource Type", "Roles", "Primary Role", "Project", "Project Type", "Platform", "Case Number", "Case Id", "Project Code", "Release Number"];
 
+const headerSequenceMap = ["Resource", "Resource Id", "Resource Type", "Roles", "Primary Role", "Project", "Project Type", "Platform", "Case Number", "Case Id", "Project Code", "Release Number"];
 let roles = {};
 let resourceTypes = {};
 
-const displayCSV = (csvData) => {
+/*  
+    * Building Front data to display CSV
+*/
+const displayCSV_U = (csvData) => {
     const rows = csvData.split('\n'); // Split data by newlines
     const table = document.getElementById('csvTable');
     const thead = table.querySelector('thead');
@@ -50,7 +49,10 @@ const displayCSV = (csvData) => {
     table.style.display = "block";
 }
 
-function convertToCSV(data, sortedHeaders) {
+/*
+    * Generating CSV data using Re-formed CSV
+*/
+function convertToCSV_U(data, sortedHeaders) {
     const rows = [];
 
     // Add headers to rows
@@ -84,6 +86,7 @@ function convertToCSV(data, sortedHeaders) {
             const row = [resData[RESNAME], resData[RESID], resData[RESTYPE], `${currRoles.join("; ")}`, currPrimRole, projData[PROJNAME], projData[PROJTYPE], projData[PLATFORM], projData[CASENUM], projData[CASEID], projData[PROJCODE], projData[RELNUM]];
 
             // Fill in data for each month
+            // initial number of loop is the length of header
             for (let i = 12; i < sortedHeaders.length; i++) {
                 const month = sortedHeaders[i];
                 const value = project[month] || 0; // Default to 0 if no data for the month
@@ -102,7 +105,11 @@ function convertToCSV(data, sortedHeaders) {
     return rows.join("\n");
 }
 
-function getHeaders(startDate, endDate) {
+/*
+    * Generating headers for csv
+    * Generated headers contain all the months which is set by user
+*/
+function getHeaders_U(startDate, endDate) {
     const start = new Date(startDate);
     const end = new Date(endDate);
     const tempHeader = [RESNAME, RESID, RESTYPE, ROLES, PRIMARYROLE, PROJNAME, PROJTYPE, PLATFORM, CASENUM, CASEID, PROJCODE, RELNUM];
@@ -118,7 +125,12 @@ function getHeaders(startDate, endDate) {
     return tempHeader; // This will be in chronological order
 }
 
-const generateJSON = async (data, projects) => {
+/*  
+    * Reforming JSON data to make CSV data
+*/
+const generateJSON_U = async (data, projects, emailCall, getUtilizationEnvConfig) => {
+
+    const { platformUdf, caseNumUdf, caseIdUdf, releaseNumUdf, projCodeUdf } = getUtilizationEnvConfig;
 
     // Generating project ID-name map
     const project_id_map = {};
@@ -129,10 +141,10 @@ const generateJSON = async (data, projects) => {
     // Date handling
     const start = new Date(data.start_date);
     const end = new Date(data.end_date);
-    const headers = getHeaders(start, end);
+    const headers = getHeaders_U(start, end);
     const utilization = {};
 
-    for (let resource = 0; resource < data.resources.length; resource++) {
+    for (let resource = 0; resource < data.resources.length; resource++) {  // Looping on all resources of current utilization
         const currentResource = data.resources[resource];
         const currRes = currentResource.data;
         const resourceId = currentResource.data.id;
@@ -152,7 +164,7 @@ const generateJSON = async (data, projects) => {
         resource_obj_data[PRIMARYROLE] = resource_obj_data[ROLES][0];
         let trackingDate = new Date(start);
 
-        for (let utilizationIndex = 0; utilizationIndex < resourceUtil.length; utilizationIndex++) {
+        for (let utilizationIndex = 0; utilizationIndex < resourceUtil.length; utilizationIndex++) {    // Looping on all bookings of current resource
             const currentUtil = resourceUtil[utilizationIndex];
             const utilBookings = currentUtil[1];
             if (utilBookings.length === 0) {
@@ -171,6 +183,7 @@ const generateJSON = async (data, projects) => {
                 }
                 const project_obj = resource_obj[project_id];
                 const project_obj_data = resource_obj[project_id].data;
+                // Setting up value for respective headings
                 project_obj_data[PROJNAME] = currProj.title;
                 project_obj_data[PROJTYPE] = currProj.project_type_id;
                 project_obj_data[PLATFORM] = currProj[platformUdf] || "NA";
@@ -184,28 +197,27 @@ const generateJSON = async (data, projects) => {
                 const year = trackingDate.getFullYear().toString().slice(-2);
                 const dateFormat = `${year}-${month}`;
 
+                // Setting booking of current date on a project of a resource
                 project_obj[dateFormat] = (project_obj[dateFormat] || 0) + currentBooking[0];
             }
 
-            // Increment the date by 1 day
+            // Marking iterated to skip in next loop
             trackingDate.setDate(trackingDate.getDate() + 1);
         }
     }
-    const convertedCSV = convertToCSV(utilization, headers);
-    downloadExistingCSV(convertedCSV);
-    displayCSV(convertedCSV);
+    const convertedCSV = convertToCSV_U(utilization, headers); // Generating CSV using reformed data
+    if (emailCall) { // Checking if data is for sending email
+        return convertedCSV;
+    }
+    downloadExistingCSV(convertedCSV); // Enabling export button with csv data
+    displayCSV_U(convertedCSV); // Sending data to front to display
 };
 
-// Handling form submission
-const handleSubmit = async (e) => {
-    e.preventDefault();
-    document.getElementById("emptyState").style.display = "none";
-    document.getElementById("csvTable").style.display = "none";
-    document.getElementById("skeletonLoader").style.display = "block";
-    const formData = new FormData(e.target);
-    const startDate = formData.get("start_date");
-    const endDate = formData.get("end_date");
-
+/*  
+    * Handles data fetch reqeust from database
+    * Also handles and setup the data received from default configuration file (.env file)
+*/
+const sendDataRequest_U = async (startDate, endDate, emailCall) => {
     const data = await fetch(`/getUtilization?start=${startDate}&end=${endDate}`, {
         method: 'GET'
     }).then(res => res.json()).then(res => res);
@@ -223,26 +235,33 @@ const handleSubmit = async (e) => {
         resourceTypes[resourceType.id] = resourceType.name;
     })
 
-    generateJSON(util, projects);
+    // Getting all fields from env configuration file
+    const envReqeust = await fetch("/udf_data_env").then(res => res.json()) || {};
+
+    const getUtilizationEnvConfig = {
+        platformUdf: envReqeust.PLATFORM_UDF,
+        caseNumUdf: envReqeust.CASE_NUM_UDF,
+        caseIdUdf: envReqeust.CASE_ID_UDF,
+        releaseNumUdf: envReqeust.RELEASE_NUM_UDF,
+        projCodeUdf: envReqeust.PROJ_CODE_UDF
+    }
+    // Generating CSV data
+    return generateJSON_U(util, projects, emailCall, getUtilizationEnvConfig);
 }
 
-// Export table data to CSV
-function downloadExistingCSV(csvContent) {
-    // Enable the button
-    const exportButton = document.getElementById("exportButton");
-    exportButton.disabled = false;
+/*  
+    * Form Submission is being handled
+    * All form values are being fetched
+*/
+const handleSubmit_U = async (e) => {
+    e.preventDefault();
+    document.getElementById("emptyState").style.display = "none";
+    document.getElementById("csvTable").style.display = "none";
+    document.getElementById("skeletonLoader").style.display = "block";
+    const formData = new FormData(e.target);
+    const startDate = formData.get("start_date");
+    const endDate = formData.get("end_date");
 
-    // Add event listener to the button
-    exportButton.addEventListener("click", () => {
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = "report.csv";
-        link.style.display = "none";
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }, { once: true }); // Ensures the event listener is executed only once
+    // Sending Request to fetch data from Database
+    sendDataRequest_U(startDate, endDate);
 }

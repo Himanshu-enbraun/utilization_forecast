@@ -1,6 +1,9 @@
-let rolesMap = {};
+let rolesMap = {}; // Roles Map is kept universal due to it's usage in multiple functions
 
-const displayCSV = (csvData) => {
+/*  
+    * Building Front data to display CSV
+*/
+const displayCSV_F = (csvData) => {
     const rows = csvData.split('\n'); // Split data by newlines
     const table = document.getElementById('csvTable');
     const thead = table.querySelector('thead');
@@ -31,11 +34,15 @@ const displayCSV = (csvData) => {
     table.style.display = "block";
 }
 
-// Helper function to format numbers
+// Helper function to format number with 2 values only after decimal
 function formatNumber(value) {
     return value % 1 === 0 ? value : value.toFixed(2);
 }
-const generateCSV = (headers, data, prData) => {
+
+/*
+    * Generating CSV data using Re-formed CSV
+*/
+const generateCSV = (headers, data) => {
     let csv = "";
     if (headers[0].length !== headers[1].length) {
         alert("Headers length must be samef");
@@ -57,9 +64,6 @@ const generateCSV = (headers, data, prData) => {
         return Number(a) - Number(b);
     });
     keys.forEach(role => {
-        // if (!prData[role] && role !== "Total" && role !== "Role Undefined") {
-        //     return;
-        // }
         const currentRole = data[role];
         for (let i = 0; i < headers[0].length; i++) {
             const headP = headers[0][i];
@@ -78,11 +82,18 @@ const generateCSV = (headers, data, prData) => {
     return csv;
 }
 
+/*
+    * Keeps track of selected Units by user
+*/
 const selectedUnits = {
     "Capacity": false, "Scheduled": false, "Pending-Request": false, "Balance": false, "Actual": false
 };
 
-function getHeaders(startDate, endDate) {
+/*
+    * Generating headers for csv
+    * Generated headers contain all the months which is set by user
+*/
+function getHeaders_F(startDate, endDate) {
     const start = new Date(startDate);
     const end = new Date(endDate);
     const headers = [
@@ -91,7 +102,7 @@ function getHeaders(startDate, endDate) {
     ];
     const units = ["Capacity", "Scheduled", "Actual", "Pending-Request", "Balance"];
 
-    // Add "Total" headers once for all selected units. Uncomment this to add total
+    // Add "Total" headers once for all selected units. Uncomment this to add row total
     // units.forEach(unit => {
     //     if (selectedUnits[unit]) {
     //         headers[0].push("Total");
@@ -116,21 +127,29 @@ function getHeaders(startDate, endDate) {
     return headers; // This will be in chronological order
 }
 
+/*
+    * Switch case for calculating balance data
+*/
 const getBalance = (condition, cap, util, actual, PR) => {
     switch (condition) {
-        case "a":
+        case "C-S":
             return cap - util;
-        case "b":
+        case "C-A":
             return cap - actual;
-        case "c":
+        case "C-S-PR":
             return cap - util - PR;
-        case "d":
+        case "C-A-PR":
             return cap - actual - PR;
         default:
             return 0;
     }
 }
 
+/*
+    * Generating PR data using PR Calculation method
+    * This function generates all the reqeusted data of particular role in mapped project
+    * Based on Linked bookings only and all booking method
+*/
 const generatePRData = (utilization, pendingReqCalculationMethod) => {
     const projects = utilization.projects || [];
     const resources = utilization.resources || [];
@@ -174,7 +193,7 @@ const generatePRData = (utilization, pendingReqCalculationMethod) => {
     });
 
     const roleUtilizationMap = {};
-    if (pendingReqCalculationMethod === 'a') {
+    if (pendingReqCalculationMethod === 'R-S') { // Using this method in case of Requested - Scheduled
         projects.forEach((pro) => {
             pro.dailyUtilization.forEach((util, id) => {
                 if (util[1]) {
@@ -195,7 +214,7 @@ const generatePRData = (utilization, pendingReqCalculationMethod) => {
                 }
             });
         });
-    } else if (pendingReqCalculationMethod === 'b' && projectIds.length > 0) {
+    } else if (pendingReqCalculationMethod === 'R-A' && projectIds.length > 0) { // Using this method in case of Requested - Actual
         resources.forEach((res) => {
             res.dailyActualUtilization.forEach((actual, id) => {
                 if (actual[1]) {
@@ -256,14 +275,17 @@ const generatePRData = (utilization, pendingReqCalculationMethod) => {
     return roleRequirementmap;
 };
 
-const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => {
+/*  
+    * Reforming JSON data to make CSV data
+*/
+const generateJSON_F = async (data, PRSelection, BalanceSelection, emailCall) => {
     const { resources, totalCapacity, totalUtilization, totalActualUtilization } = data;
 
     const prData = generatePRData(data, PRSelection);
 
     const start = new Date(data.start_date);
     const end = new Date(data.end_date);
-    const headers = getHeaders(start, end);
+    const headers = getHeaders_F(start, end);
     const forecast = { Total: {} };
 
     for (let resource = 0; resource < resources.length; resource++) { // Looping on all resources
@@ -274,13 +296,13 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
         for (let role = 0; role < roles.length; role++) { // Looping on all roles of current resource
             const currentRole = roles[role];
 
-            const dateRange = dailyCapacity.length;
-            const trackingDate = new Date(start);
+            const dateRange = dailyCapacity.length; // Setting up date range to run loop
+            const trackingDate = new Date(start);   // Initializing tracking date everytime the roles loop initiates
 
             if (!forecast[currentRole]) {
                 forecast[currentRole] = { name: rolesMap[currentRole] };
             }
-            const roleObj = forecast[currentRole];
+            const roleObj = forecast[currentRole];  // Current Roles Data
 
             for (let dateIndex = 0; dateIndex < dateRange; dateIndex++) { // Looping on data given in format of dates from start to end
                 const currentCap = role === 0 ? dailyCapacity[dateIndex] : 0;
@@ -351,6 +373,11 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
                     actObj[dateFormat] = (actObj[dateFormat] || 0) + currentActUtil;
                     actObj["Total"] += currentActUtil; // Row Total unit wise
                 }
+
+                /*
+                    * Checking & Marking Iterated on PR data if it is iterated
+                    * Since it is running once only
+                */
                 const prIterated = () => {
                     if (prData[currentRole]) {
                         if (prData[currentRole].includes("iterated")) {
@@ -365,7 +392,7 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
                     }
                     return false;
                 }
-                if (selectedUnits["Pending-Request"] && !prIterated()) {
+                if (selectedUnits["Pending-Request"] && !prIterated()) { // Setting PR data once if it is not iterated
                     if (!roleObj["Pending-Request"]) {
                         roleObj["Pending-Request"] = { Total: 0 };
                     }
@@ -395,35 +422,31 @@ const generateJSON = async (data, PRSelection = 'a', BalanceSelection = 'b') => 
                     forecast.Total.Balance[dateFormat] = (forecast.Total.Balance[dateFormat] || 0) + balance;
                 }
 
+                // Increasing tracking date
                 trackingDate.setDate(trackingDate.getDate() + 1);
             }
-            // marking iterated to skip in next loop
+
+            // Marking iterated to skip in next loop
             currentRole === "Role Undefined" ? prData[-1] && !prData[-1].includes("iterated") && prData[-1].push("iterated") : prData[currentRole] && !prData[currentRole].includes("iterated") && prData[currentRole].push("iterated");
         }
     }
-    const createdCSV = generateCSV(headers, forecast, prData);
-    downloadExistingCSV(createdCSV);
-    displayCSV(createdCSV);
+    const createdCSV = generateCSV(headers, forecast); // Generating CSV using reformed data
+    if(emailCall){ // Checking if data is for sending email
+        return createdCSV;
+    }
+    downloadExistingCSV(createdCSV); // Enabling export button with csv data
+    displayCSV_F(createdCSV); // Sending data to front to display
 }
 
-// Handling form submission
-const handleSubmit = async (e) => {
-    e.preventDefault();
-    document.getElementById("emptyState").style.display = "none";
-    document.getElementById("csvTable").style.display = "none";
-    document.getElementById("skeletonLoader").style.display = "block";
-    const formData = new FormData(e.target);
-    const startDate = formData.get("start_date");
-    const endDate = formData.get("end_date");
-    const PRData = formData.get("pr_data");
-    const BalData = formData.get("balance_data");
-    const LinkedBookingsOnly = formData.get("all_linkedBookings");
-
+/*  
+    * Handles data fetch reqeust from database
+    * Also handles and setup the data received from default configuration file (.env file)
+*/
+const sendDataRequest_F = async (startDate, endDate, checkboxes, PRData, BalData, LinkedBookingsOnly, emailCall) => {
     for (const key in selectedUnits) {
         selectedUnits[key] = false;
     }
 
-    const checkboxes = formData.getAll("units");
     checkboxes.forEach(box => {
         selectedUnits[box] = true
     })
@@ -437,26 +460,28 @@ const handleSubmit = async (e) => {
     rolesArray.forEach(role => {
         rolesMap[role.id] = role.name;
     })
-    generateJSON(forecast, PRData, BalData);
+
+    // Generating CSV data
+    return generateJSON_F(forecast, PRData, BalData, emailCall);
 }
 
-// Export table data to CSV
-function downloadExistingCSV(csvContent) {
-    // Enable the button
-    const exportButton = document.getElementById("exportButton");
-    exportButton.disabled = false;
+/*  
+    * Form Submission is handled here
+    * All form values are being fetched here
+*/
+const handleSubmit_F = async (e) => {
+    e.preventDefault();
+    document.getElementById("emptyState").style.display = "none";
+    document.getElementById("csvTable").style.display = "none";
+    document.getElementById("skeletonLoader").style.display = "block";
+    const formData = new FormData(e.target);
+    const startDate = formData.get("start_date");
+    const endDate = formData.get("end_date");
+    const PRData = formData.get("pr_data");
+    const BalData = formData.get("balance_data");
+    const LinkedBookingsOnly = formData.get("all_linkedBookings");
+    const checkboxes = formData.getAll("units");
 
-    // Add event listener to the button
-    exportButton.addEventListener("click", () => {
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = "report.csv";
-        link.style.display = "none";
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }, { once: true }); // Ensures the event listener is executed only once
+    // Sending Request to fetch data from Database
+    sendDataRequest_F(startDate, endDate, checkboxes, PRData, BalData, LinkedBookingsOnly);
 }
