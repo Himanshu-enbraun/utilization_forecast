@@ -2,7 +2,6 @@ const express = require("express");
 const path = require("path");
 const cors = require("cors");
 const cron = require("node-cron");
-const open = require("open").default;
 const nodemailer = require("nodemailer");
 
 const forecastJS = require("./forecast_back.js");
@@ -20,9 +19,6 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // Static page loader
 app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-app.get("/forecast", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "forecast.html"));
 });
 app.get("/utilization", (req, res) => {
@@ -103,33 +99,19 @@ const sendEmail = async ({ subject, csvData, csvFileName }) => {
     return;
 };
 
-// API Endpoint to Send Email
-app.get("/sendemail", async (req, res) => {
+(JSON.parse(process.env.MAILER) || true) && cron.schedule(process.env.RUN_TIME, async () => {
     try {
         const { forecastEmail, utilizationEmail } = await mailerJS.main(process.env);
-        console.log("Initiating mail service and sending first mail");
+        console.log("Running mailer job...");
         await sendEmail(forecastEmail);
         await sendEmail(utilizationEmail);
-        cron.schedule(process.env.RUN_TIME, async () => {
-            try {
-                console.log("Running mailer job...");
-                await sendEmail(forecastEmail);
-                await sendEmail(utilizationEmail);
-                console.log("Mailer job completed successfully.");
-            } catch (error) {
-                console.error("Error running mailer job:", error.message);
-            }
-        });
-
-        return res.send({ message: "Emails will be sent every 1 minutes." });
+        console.log("Mailer job completed successfully.");
     } catch (error) {
-        console.error("Error initializing email job:", error.message);
-        return res.status(500).send({ error: "Failed to initialize email job." });
+        console.error("Error running mailer job:", error.message);
     }
 });
 
 // Start the server
 app.listen(process.env.PORT, async () => {
     console.log(`Server is running at http://localhost:${process.env.PORT}`);
-    await open(`http://localhost:${process.env.PORT}`)
 });
