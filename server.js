@@ -2,6 +2,7 @@ const express = require("express");
 const path = require("path");
 const cors = require("cors");
 const cron = require("node-cron");
+const open = require("open").default;
 const nodemailer = require("nodemailer");
 
 const forecastJS = require("./forecast_back.js");
@@ -129,5 +130,6 @@ app.get("/sendemail", async (req, res) => {
 
 // Start the server
 app.listen(process.env.PORT, async () => {
-    console.log(`Server is running at. Open this link in browser http://localhost:${process.env.PORT}`);
+    console.log(`Server is running at http://localhost:${process.env.PORT}`);
+    await open(`http://localhost:${process.env.PORT}`)
 });
