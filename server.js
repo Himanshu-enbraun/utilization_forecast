@@ -99,7 +99,7 @@ const sendEmail = async ({ subject, csvData, csvFileName }) => {
     return;
 };
 
-(JSON.parse(process.env.MAILER) || true) && cron.schedule(process.env.RUN_TIME, async () => {
+JSON.parse(process.env.MAILER) && cron.schedule(process.env.RUN_TIME, async () => {
     try {
         const { forecastEmail, utilizationEmail } = await mailerJS.main(process.env);
         console.log("Running mailer job...");
