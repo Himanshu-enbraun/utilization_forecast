@@ -1,7 +1,27 @@
 const axios = require('axios');
+const Papa = require("papaparse");
 // Helper function to format number with 2 values only after decimal
 function formatNumber(value) {
     return value % 1 === 0 ? value : value.toFixed(2);
+}
+
+/*
+    Generating HTML table
+*/
+function csvToHtmlTable(csvString) {
+    const parsedData = Papa.parse(csvString, { header: true, skipEmptyLines: true });
+
+    let html = "<thead class='table-dark' id='tableHeader'>\n    <tr>";
+    html += Object.keys(parsedData.data[0]).map(header => `<th>${header ? header.split('_')[0] : ''}</th>`).join("");
+    html += "</tr>\n  </thead>\n  <tbody id='reportTableBody'>";
+
+    parsedData.data.forEach(row => {
+        html += "\n    <tr>" + Object.values(row).map(value => `<td>${value}</td>`).join("") + "</tr>";
+    });
+
+    html += "\n  </tbody>";
+
+    return html;
 }
 
 /*
@@ -396,7 +416,7 @@ const generateJSON = async (data, PRSelection, BalanceSelection) => {
         }
     }
     const createdCSV = generateCSV(headers, forecast); // Generating CSV using reformed data
-    return createdCSV;
+    return {createdCSV, frontHTML:csvToHtmlTable(createdCSV)};
 }
 
 /*  

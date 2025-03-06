@@ -55,8 +55,8 @@ const generateData = async (env) => {
 
         // Fetch utilization and forecast data from respective APIs
         const forecastData = { startDate, endDate, checkboxes, PRData, BalData, LinkedBookingsOnly, env }
-        const forecast = await forecastJS.sendDataRequest(forecastData);
-        const utilization = await utilizationJS.sendDataRequest(startDate, endDate, env);
+        const { createdCSV: forecast } = await forecastJS.sendDataRequest(forecastData);
+        const { createdCSV: utilization } = await utilizationJS.sendDataRequest(startDate, endDate, env);
 
         return { forecast, utilization };
     } catch (error) {

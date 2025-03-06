@@ -3,33 +3,10 @@ let rolesMap = {}; // Roles Map is kept universal due to it's usage in multiple 
 /*  
     * Building Front data to display CSV
 */
-const displayCSV = (csvData) => {
-    const rows = csvData.split('\n'); // Split data by newlines
+const displayCSV = (csvHTML) => {
     const table = document.getElementById('csvTable');
-    const thead = table.querySelector('thead');
-    const tbody = table.querySelector('tbody');
+    table.innerHTML = csvHTML;
 
-    // Clear existing table content
-    thead.innerHTML = '';
-    tbody.innerHTML = '';
-
-    rows.forEach((row, index) => {
-        const cells = row.split(','); // Split row into columns
-        if (!cells[cells.length - 1]) {
-            cells.pop();
-        }
-        const tr = document.createElement('tr');
-        cells.forEach(cell => {
-            const td = document.createElement(index === 0 ? 'th' : 'td');
-            td.textContent = cell.trim();
-            tr.appendChild(td);
-        });
-        if (index === 0) {
-            thead.appendChild(tr); // Add header row to <thead>
-        } else {
-            tbody.appendChild(tr); // Add data rows to <tbody>
-        }
-    });
     document.getElementById("skeletonLoader").style.display = "none";
     table.style.display = "block";
 }
@@ -40,7 +17,7 @@ const displayCSV = (csvData) => {
 function downloadExistingCSV(csvContent) {
     // Enable the button
     const exportButton = document.getElementById("exportButton");
-    if(!exportButton) return;
+    if (!exportButton) return;
     exportButton.disabled = false;
 
     // Add event listener to the button
@@ -76,14 +53,13 @@ const handleSubmit = async (e) => {
     const checkboxes = formData.getAll("units");
 
     // Sending Request to fetch data from Database
-    const CSVData = await fetch('/getForecastCSV', {
+    const { createdCSV, frontHTML } = await fetch('/getForecastCSV', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ startDate, endDate, checkboxes, PRData, BalData, LinkedBookingsOnly}),
-    }).then(res=> res.json());
-    console.log(CSVData)
-    displayCSV(CSVData);
-    downloadExistingCSV(CSVData);
+        body: JSON.stringify({ startDate, endDate, checkboxes, PRData, BalData, LinkedBookingsOnly }),
+    }).then(res => res.json());
+    displayCSV(frontHTML);
+    downloadExistingCSV(createdCSV);
 }

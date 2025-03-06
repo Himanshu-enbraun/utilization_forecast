@@ -1,5 +1,5 @@
-const axios = require("axios")
-
+const axios = require("axios");
+const Papa = require("papaparse");
 /*
     * Variables used throughout multiple files
 */
@@ -19,6 +19,25 @@ const RELNUM = "releaseNumber"
 const headerSequenceMap = ["Resource", "Resource Id", "Resource Type", "Roles", "Primary Role", "Project", "Project Type", "Platform", "Case Number", "Case Id", "Project Code", "Release Number"];
 let roles = {};
 let resourceTypes = {};
+
+/*
+    Generating HTML table
+*/
+function csvToHtmlTable(csvString) {
+    const parsedData = Papa.parse(csvString, { header: true});
+
+    let html = "<thead class='table-dark' id='tableHeader'>\n    <tr>";
+    html += Object.keys(parsedData.data[0]).map(header => `<th>${header}</th>`).join("");
+    html += "</tr>\n  </thead>\n  <tbody id='reportTableBody'>";
+
+    parsedData.data.forEach(row => {
+        html += "\n    <tr>" + Object.values(row).map(value => `<td>${value}</td>`).join("") + "</tr>";
+    });
+
+    html += "\n  </tbody>";
+
+    return html;
+}
 
 /*
     * Generating CSV data using Re-formed CSV
@@ -54,7 +73,7 @@ function convertToCSV(data, sortedHeaders) {
                 currRoles.push(roles[role] || role);
             })
             const currPrimRole = roles[renamingRoles[0]] || renamingRoles[0];
-            const row = [resData[RESNAME], resData[RESID], resData[RESTYPE], `${currRoles.join("; ")}`, currPrimRole, projData[PROJNAME], projData[PROJTYPE], projData[PLATFORM], projData[CASENUM], projData[CASEID], projData[PROJCODE], projData[RELNUM]];
+            const row = [resData[RESNAME], resData[RESID], resData[RESTYPE], `"${currRoles.join(", ")}"`, currPrimRole, projData[PROJNAME], projData[PROJTYPE], projData[PLATFORM], projData[CASENUM], projData[CASEID], projData[PROJCODE], projData[RELNUM]];
 
             // Fill in data for each month
             // initial number of loop is the length of header
@@ -177,8 +196,8 @@ const generateJSON = async (data, projects, getUtilizationEnvConfig) => {
             trackingDate.setDate(trackingDate.getDate() + 1);
         }
     }
-    const convertedCSV = convertToCSV(utilization, headers); // Generating CSV using reformed data
-    return convertedCSV;
+    const createdCSV = convertToCSV(utilization, headers); // Generating CSV using reformed data
+    return { createdCSV, frontHTML: csvToHtmlTable(createdCSV) };
 };
 
 const sendDataRequest = async (startDate, endDate, env) => {

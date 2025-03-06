@@ -1,30 +1,10 @@
 /*  
     * Building Front data to display CSV
 */
-const displayCSV = (csvData) => {
-    const rows = csvData.split('\n'); // Split data by newlines
+const displayCSV = (csvHTML) => {
     const table = document.getElementById('csvTable');
-    const thead = table.querySelector('thead');
-    const tbody = table.querySelector('tbody');
+    table.innerHTML = csvHTML;
 
-    // Clear existing table content
-    thead.innerHTML = '';
-    tbody.innerHTML = '';
-
-    rows.forEach((row, index) => {
-        const cells = row.split(','); // Split row into columns
-        const tr = document.createElement('tr');
-        cells.forEach(cell => {
-            const td = document.createElement(index === 0 ? 'th' : 'td');
-            td.textContent = cell.trim();
-            tr.appendChild(td);
-        });
-        if (index === 0) {
-            thead.appendChild(tr); // Add header row to <thead>
-        } else {
-            tbody.appendChild(tr); // Add data rows to <tbody>
-        }
-    });
     document.getElementById("skeletonLoader").style.display = "none";
     table.style.display = "block";
 }
@@ -66,13 +46,13 @@ const handleSubmit = async (e) => {
     const startDate = formData.get("start_date");
     const endDate = formData.get("end_date");
 
-    const CSVData = await fetch('/getUtilizationCSV', {
+    const { createdCSV, frontHTML } = await fetch('/getUtilizationCSV', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({ startDate, endDate }),
     }).then(res => res.json());
-    displayCSV(CSVData);
-    downloadExistingCSV(CSVData);
+    displayCSV(frontHTML);
+    downloadExistingCSV(createdCSV);
 }

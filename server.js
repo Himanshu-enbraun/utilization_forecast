@@ -9,11 +9,8 @@ const utilizationJS = require("./utilization_back.js");
 const mailerJS = require("./mailer.js");
 
 require("dotenv").config();
-const domain = process.env.ERS_API_DOMAIN;
-const token = process.env.ERS_TOKEN;
 
 const app = express();
-const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
@@ -131,6 +128,6 @@ app.get("/sendemail", async (req, res) => {
 });
 
 // Start the server
-app.listen(PORT, () => {
-    console.log(`Server is running at http://localhost:${PORT}`);
+app.listen(process.env.PORT, async () => {
+    console.log(`Server is running at. Open this link in browser http://localhost:${process.env.PORT}`);
 });
