@@ -1,8 +1,13 @@
 const express = require("express");
 const path = require("path");
 const cors = require("cors");
-const axios = require("axios");
+const cron = require("node-cron");
 const nodemailer = require("nodemailer");
+
+const forecastJS = require("./forecast_back.js");
+const utilizationJS = require("./utilization_back.js");
+const mailerJS = require("./mailer.js");
+
 require("dotenv").config();
 const domain = process.env.ERS_API_DOMAIN;
 const token = process.env.ERS_TOKEN;
@@ -15,6 +20,7 @@ app.use(express.json());
 // Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, "public")));
 
+// Static page loader
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -25,6 +31,7 @@ app.get("/utilization", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "utilization.html"));
 });
 
+// APIs
 app.get("/env_config", (req, res) => {
     res.json({
         DATE_RANGE: process.env.DATE_RANGE,
@@ -34,66 +41,33 @@ app.get("/env_config", (req, res) => {
         LINKED_BOOKINGS_ONLY: process.env.LINKED_BOOKINGS_ONLY,
     });
 });
-app.get("/udf_data_env", (req, res) => {
-    res.json({
-        PLATFORM_UDF: process.env.PLATFORM_UDF,
-        CASE_NUM_UDF: process.env.CASE_NUM_UDF,
-        CASE_ID_UDF: process.env.CASE_ID_UDF,
-        RELEASE_NUM_UDF: process.env.RELEASE_NUM_UDF,
-        PROJ_CODE_UDF: process.env.PROJ_CODE_UDF
-    });
-});
 
-app.get("/getForecast", async (req, res) => {
-    const { start, end, linkedBookingsOnly = false } = req.query; // Use req.query for query parameters
-
+app.post("/getForecastCSV", async (req, res) => {
     try {
-        const roles = await axios.get(`${domain}/rest/roles`, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            },
-        });
-        const forecast = await axios.get(`${domain}/rest/forecast?start=${start}&end=${end}&calculateGapUsingLinkedBookings=${linkedBookingsOnly}`, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            },
-        });
-        res.send({ msg: "Data fetched", forecast: forecast.data, roles: roles.data });
-    } catch (error) {
-        console.error("Error fetching data:", error.message);
-        res.status(500).send({ msg: "An error occurred", error: error.message });
+        const { startDate, endDate, checkboxes, PRData, BalData, LinkedBookingsOnly } = req.body;
+        if (!startDate || !endDate || !checkboxes || !PRData || !BalData || !LinkedBookingsOnly) {
+            return res.status(400).json({ error: "Start Date, End Date, PR Data, Bal Data, Linked Bookings Only and Units are required" });
+        }
+        const response = await forecastJS.sendDataRequest({ startDate, endDate, checkboxes, PRData, BalData, LinkedBookingsOnly, env: process.env });
+        return res.json(response);
     }
-});
+    catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: error.message });
+    }
+})
 
-app.get("/getUtilization", async (req, res) => {
-    const { start, end } = req.query; // Use req.query for query parameters
-
+app.post("/getUtilizationCSV", async (req, res) => {
     try {
-        const roles = await axios.get(`${domain}/rest/roles`, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            },
-        });
-        const utilisation = await axios.get(`${domain}/rest/utilization?start=${start}&end=${end}`, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            },
-        });
-        const projects = await axios.get(`${domain}/rest/utilization/projects-data`, {
-            "headers": {
-                Authorization: `Bearer ${token}`
-            },
-            "method": "GET"
-        })
-        const resourceTypes = await axios.get(`${domain}/rest/resourcetype`, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            },
-        });
-        res.send({ msg: "Data fetched", utilisation: utilisation.data, projects: projects.data.data, roles: roles.data, resourceTypes: resourceTypes.data.data });
+        const { startDate, endDate } = req.body;
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: "Start Date and End Date are required" });
+        }
+        const response = await utilizationJS.sendDataRequest(startDate, endDate, process.env);
+        return res.json(response);
     } catch (error) {
-        console.error("Error fetching data:", error.message);
-        res.status(500).send({ msg: "An error occurred", error: error.message });
+        console.error(error);
+        return res.status(500).json({ error: error.message });
     }
 });
 
@@ -132,16 +106,28 @@ const sendEmail = async ({ subject, csvData, csvFileName }) => {
 };
 
 // API Endpoint to Send Email
-app.post("/sendemail", async (req, res) => {
-    const { subject, csvData, csvFileName } = req.body;
+app.get("/sendemail", async (req, res) => {
+    try {
+        const { forecastEmail, utilizationEmail } = await mailerJS.main(process.env);
+        console.log("Initiating mail service and sending first mail");
+        await sendEmail(forecastEmail);
+        await sendEmail(utilizationEmail);
+        cron.schedule(process.env.RUN_TIME, async () => {
+            try {
+                console.log("Running mailer job...");
+                await sendEmail(forecastEmail);
+                await sendEmail(utilizationEmail);
+                console.log("Mailer job completed successfully.");
+            } catch (error) {
+                console.error("Error running mailer job:", error.message);
+            }
+        });
 
-    if (!subject || !csvData || !csvFileName) {
-        return res.status(400).json({ success: false, error: "Missing required fields" });
+        return res.send({ message: "Emails will be sent every 1 minutes." });
+    } catch (error) {
+        console.error("Error initializing email job:", error.message);
+        return res.status(500).send({ error: "Failed to initialize email job." });
     }
-
-    const response = await sendEmail({ subject, csvData, csvFileName });
-    console.log(response);
-    return res.json(response);
 });
 
 // Start the server
