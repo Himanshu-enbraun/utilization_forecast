@@ -99,17 +99,25 @@ const sendEmail = async ({ subject, csvData, csvFileName }) => {
     return;
 };
 
-JSON.parse(process.env.MAILER) && cron.schedule(process.env.RUN_TIME, async () => {
-    try {
+JSON.parse(process.env.MAILER) &&
+  cron.schedule(
+    process.env.RUN_TIME,
+    async () => {
+      try {
         const { forecastEmail, utilizationEmail } = await mailerJS.main(process.env);
         console.log("Running mailer job...");
         await sendEmail(forecastEmail);
         await sendEmail(utilizationEmail);
         console.log("Mailer job completed successfully.");
-    } catch (error) {
+      } catch (error) {
         console.error("Error running mailer job:", error.message);
+      }
+    },
+    {
+      timezone: process.env.TIMEZONE || "Asia/Kolkata",
     }
-});
+);
+
 
 // Start the server
 app.listen(process.env.PORT, async () => {
