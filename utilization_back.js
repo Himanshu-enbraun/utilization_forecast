@@ -19,12 +19,13 @@ const RELNUM = "releaseNumber"
 const headerSequenceMap = ["Resource", "Resource Id", "Resource Type", "Roles", "Primary Role", "Project", "Project Type", "Platform", "Case Number", "Case Id", "Project Code", "Release Number"];
 let roles = {};
 let resourceTypes = {};
+let projectTypes = {};
 
 /*
     Generating HTML table
 */
 function csvToHtmlTable(csvString) {
-    const parsedData = Papa.parse(csvString, { header: true});
+    const parsedData = Papa.parse(csvString, { header: true });
 
     let html = "<thead class='table-dark' id='tableHeader'>\n    <tr>";
     html += Object.keys(parsedData.data[0]).map(header => `<th>${header}</th>`).join("");
@@ -176,7 +177,7 @@ const generateJSON = async (data, projects, getUtilizationEnvConfig) => {
                 const project_obj_data = resource_obj[project_id].data;
                 // Setting up value for respective headings
                 project_obj_data[PROJNAME] = currProj.title;
-                project_obj_data[PROJTYPE] = currProj.project_type_id;
+                project_obj_data[PROJTYPE] = projectTypes[currProj.project_type_id] || currProj.project_type_id;
                 project_obj_data[PLATFORM] = currProj[platformUdf] || "NA";
                 project_obj_data[CASENUM] = currProj[caseNumUdf] || "NA";
                 project_obj_data[CASEID] = currProj[caseIdUdf] || "NA";
@@ -203,7 +204,7 @@ const generateJSON = async (data, projects, getUtilizationEnvConfig) => {
 const sendDataRequest = async (startDate, endDate, env) => {
     try {
         // Fetch data using axios
-        const [rolesResponse, utilizationResponse, projectsResponse, resourceTypesResponse] = await Promise.all([
+        const [rolesResponse, utilizationResponse, projectsResponse, resourceTypesResponse, projectTypesResponse] = await Promise.all([
             axios.get(`${env.ERS_API_DOMAIN}/rest/roles`, {
                 headers: { Authorization: `Bearer ${env.ERS_TOKEN}` }
             }),
@@ -216,14 +217,19 @@ const sendDataRequest = async (startDate, endDate, env) => {
             }),
             axios.get(`${env.ERS_API_DOMAIN}/rest/resourcetype`, {
                 headers: { Authorization: `Bearer ${env.ERS_TOKEN}` }
+            }),
+            axios.get(`${env.ERS_API_DOMAIN}/rest/v1/projecttypes`, {
+                headers: { Authorization: `Bearer ${env.ERS_TOKEN}` }
             })
         ]);
 
         // Extract data from responses
         const util = utilizationResponse.data;
-        const projects = projectsResponse.data.data;
-        const resourceTypeArray = resourceTypesResponse.data.data;
+        const projects = projectsResponse.data && projectsResponse.data.data || [];
+        const resourceTypeArray = resourceTypesResponse.data && resourceTypesResponse.data.data || [];
+        const projectTypeArray = projectTypesResponse.data && projectTypesResponse.data.data || [];
         const rolesArray = rolesResponse.data?.data || [];
+        
 
         // Map roles and resource types
         roles = {};
@@ -234,6 +240,11 @@ const sendDataRequest = async (startDate, endDate, env) => {
         resourceTypes = {};
         resourceTypeArray.forEach(resourceType => {
             resourceTypes[resourceType.id] = resourceType.name;
+        });
+
+        projectTypes = {};
+        projectTypeArray.forEach(projectType => {
+            projectTypes[projectType.id] = projectType.name;
         });
 
         const getUtilizationEnvConfig = {
